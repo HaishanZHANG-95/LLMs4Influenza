@@ -22,7 +22,7 @@ class Llama3(nn.Module):
 
         if configs.is_gpt:
             if configs.pretrain:
-                self.llama3 = AutoModelForCausalLM.from_pretrained('/data_disk/lichx/Model_from_HF/LLAMA3',
+                self.llama3 = AutoModelForCausalLM.from_pretrained(configs.gpt_path,
                                                         output_hidden_states=True,
                                                         attn_implementation="eager",
                                                         torch_dtype=torch.float16,

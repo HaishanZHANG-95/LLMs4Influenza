@@ -25,7 +25,7 @@ class Llama2(nn.Module):
         if configs.is_gpt:
             if configs.pretrain:
                 try:
-                    model_dir = '/data_disk/lichx/Model_from_HF/LLAMA2'
+                    model_dir = configs.gpt_path
                     self.llama2 = LlamaForCausalLM.from_pretrained(model_dir,
                                                                     output_attentions=True,
                                                                     output_hidden_states=True,

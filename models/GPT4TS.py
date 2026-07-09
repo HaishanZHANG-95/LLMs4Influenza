@@ -22,7 +22,7 @@ class GPT4TS(nn.Module):
         self.patch_num += 1
         if configs.is_gpt:
             if configs.pretrain:
-                self.gpt2 = GPT2Model.from_pretrained('/data_disk/lichx/Model_from_HF/GPT2', output_attentions=True, output_hidden_states=True)
+                self.gpt2 = GPT2Model.from_pretrained(configs.gpt_path, output_attentions=True, output_hidden_states=True)
             else:
                 print("------------------no pretrain------------------")
                 self.gpt2 = GPT2Model(GPT2Config())
