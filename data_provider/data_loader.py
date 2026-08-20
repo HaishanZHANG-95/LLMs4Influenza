@@ -212,7 +212,8 @@ class Dataset_Custom(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h',
-                 percent=10, max_len=-1, train_all=False):
+                 percent=10, max_len=-1, train_all=False,
+                 test_end_date=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -230,10 +231,11 @@ class Dataset_Custom(Dataset):
 
         self.features = features
         self.target = target
-        self.scale = False 
+        self.scale = False
         self.timeenc = timeenc
         self.freq = freq
         self.percent = percent
+        self.test_end_date = test_end_date
 
         self.root_path = root_path
         self.data_path = data_path
@@ -262,8 +264,18 @@ class Dataset_Custom(Dataset):
         num_test = int(len(df_raw) * 0.2)
         num_vali = len(df_raw) - num_train - num_test
 
-        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
-        border2s = [num_train, num_train + num_vali, len(df_raw)]
+        # Optionally cut the test window at a specific date instead of the file end
+        if self.test_end_date is not None:
+            dates = pd.to_datetime(df_raw['date'])
+            mask = dates <= pd.Timestamp(self.test_end_date)
+            if not mask.any():
+                raise ValueError(f"test_end_date '{self.test_end_date}' is before the first row in the dataset.")
+            test_end_idx = int(mask.sum())   # rows up to and including the cutoff date
+        else:
+            test_end_idx = len(df_raw)
+
+        border1s = [0, num_train - self.seq_len, test_end_idx - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, test_end_idx]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
         

@@ -48,9 +48,10 @@ def data_provider(args, flag, drop_last_test=False, train_all=False):
         target=args.target,
         timeenc=timeenc,
         freq=freq,
-        percent=percent, 
-        max_len=max_len, 
-        train_all=train_all
+        percent=percent,
+        max_len=max_len,
+        train_all=train_all,
+        test_end_date=getattr(args, 'test_end_date', None),
     )
     print(flag, len(data_set))
     data_loader = DataLoader(

@@ -60,20 +60,41 @@ This codebase supports multiple LLM backbones. Download the desired pre-trained 
 
 ## Usage
 
+### Generate Comparison Plot
+
+To generate a comparison plot between Llama2 and PatchTST models for date 2017-10-23:
+
+```bash
+bash scripts/run_single_comparison_2017-10-23.sh
+```
+
+This script will:
+1. Train Llama2 model for the specified date with 3 iterations
+2. Train PatchTST model for the same date with 3 iterations
+3. Generate a comparison figure showing both predictions
+
+The output figure will be saved to `./figures/2017-10-23.png`:
+
+![Comparison Plot](./figures/2017-10-23.png)
+
+### Basic Training
+
 Run training with:
 
 ```bash
 python main.py \
   --model_id <experiment_name> \
-  --model GPT4TS \
-  --gpt_path <path_to_pretrained_model> \
+  --model Llama2 \
+  --gpt_path <path_to_llama2_model> \
   --data_path <your_data.csv> \
-  --seq_len 512 \
+  --seq_len 52 \
   --pred_len 13 \
-  --batch_size 32 \
-  --train_epochs 10 \
-  --pretrain 1 \
-  --freeze 1
+  --batch_size 4 \
+  --train_epochs 64 \
+  --learning_rate 1e-4 \
+  --d_model 4096 \
+  --llama_layers 32 \
+  --is_gpt 1
 ```
 
 Key arguments:

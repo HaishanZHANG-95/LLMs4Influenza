@@ -1,5 +1,5 @@
 from data_provider.data_factory import data_provider
-from utils.tools import EarlyStopping, adjust_learning_rate, visual, vali, test
+from utils.tools import EarlyStopping, adjust_learning_rate, visual, vali, test, collect_test_predictions
 from tqdm import tqdm
 from models.PatchTST import PatchTST
 from models.GPT4TS import GPT4TS
@@ -23,6 +23,7 @@ import psutil
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import argparse
 import random
@@ -39,7 +40,7 @@ parser.add_argument('--root_path', type=str, default='./dataset/')
 parser.add_argument('--data_path', type=str, default='NorthChina_diff.csv')
 parser.add_argument('--data', type=str, default='custom')
 parser.add_argument('--features', type=str, default='M')
-parser.add_argument('--freq', type=int, default=1)
+parser.add_argument('--freq', type=str, default='W')
 parser.add_argument('--target', type=str, default='OT')
 parser.add_argument('--embed', type=str, default='timeF')
 parser.add_argument('--percent', type=int, default=10)
@@ -59,7 +60,7 @@ parser.add_argument('--patience', type=int, default=3)
 parser.add_argument('--gpt_layers', type=int, default=6)
 parser.add_argument('--llama_layers', type=int, default=32)
 parser.add_argument('--is_gpt', type=int, default=1)
-parser.add_argument('--gpt_path', type=str, required=True, help='Path to pretrained model directory')
+parser.add_argument('--gpt_path', type=str, default='', help='Path to pretrained model directory (required for LLM-based models)')
 parser.add_argument('--e_layers', type=int, default=3)
 parser.add_argument('--d_model', type=int, default=768)
 parser.add_argument('--n_heads', type=int, default=16)
@@ -88,6 +89,9 @@ parser.add_argument('--write_model', type=int, default=0)
 parser.add_argument('--if_inverse', type=int, default=0)
 parser.add_argument('--order', type=int, default=0)
 parser.add_argument('--fc_layer', type=int, default=512)
+parser.add_argument('--test_end_date', type=str, default=None,
+                    help='Test window cutoff date (e.g. "2020-01-27"). '
+                         'Defaults to end of dataset (current behaviour).')
 
 args = parser.parse_args()
 
@@ -140,9 +144,10 @@ for ii in range(args.itr):
     vali_data, vali_loader = data_provider(args, 'val')
     test_data, test_loader = data_provider(args, 'test')
 
-    if args.freq != 'h':
-        args.freq = SEASONALITY_MAP[test_data.freq]
-        print("freq = {}".format(args.freq))
+    # if args.freq != 'h':
+    #     args.freq = SEASONALITY_MAP[test_data.freq]
+    #     print("freq = {}".format(args.freq))
+    print("freq = {}".format(args.freq))
     
     # device = torch.device('cpu')
 
@@ -257,6 +262,19 @@ for ii in range(args.itr):
     # model.load_state_dict(torch.load(best_model_path, map_location=torch.device('cpu')))
     print("------------------------------------")
     mse, mae, corr1, corr2 = test(model, test_data, test_loader, args, device, ii)
+
+    # save test predictions for multi-model plotting
+    preds_diff, trues_diff, forecast_dates, *_ = collect_test_predictions(
+        model, test_loader, args, device, ii)
+    os.makedirs("./predictions", exist_ok=True)
+    pd.DataFrame({
+        "model_name":  args.model,
+        "data_path":   args.data_path,
+        "date":        forecast_dates,
+        "y_pred_diff": preds_diff,
+        "y_true_diff": trues_diff,
+    }).to_csv(f"./predictions/{args.model_id}_itr{ii}_predictions.csv", index=False)
+
     mses.append(mse)
     maes.append(mae)
     corr_s.append(corr1)

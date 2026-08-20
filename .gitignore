@@ -14,3 +14,24 @@ data/
 *.h5
 *.hdf5
 Model_from_HF/
+
+# Training outputs
+predictions/
+predictions-*/
+logs/
+figures-*/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter notebooks (optional, uncomment if you don't want to commit notebooks)
+# *.ipynb

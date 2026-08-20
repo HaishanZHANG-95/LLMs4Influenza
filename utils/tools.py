@@ -533,3 +533,145 @@ def test(model, test_data, test_loader, args, device, itr):
             visual(dt2, GT, PD, corr_sperman[k], corr_pearson[k], os.path.join(folder_path, f'if_inverse-{args.if_inverse}_' + f'pred_len-{args.pred_len}_' + f'epochs-{args.train_epochs}_' + str(k) + '.pdf'))
         
     return mse, mae, corr1, corr2
+
+
+import matplotlib.dates as mdates
+
+def plot_gpt4ts_inset(
+    ax,
+    dates,
+    y_true,
+    y_pred,
+    model_name="GPT4TS",
+    model_color="#2CBCC4",
+    true_color="#26382D",
+    green_spans=None,
+    orange_spans=None,
+    mae=None,
+    y_margin=0.08,
+):
+    dates = pd.to_datetime(dates)
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+
+    if len(dates) != len(y_true) or len(dates) != len(y_pred):
+        raise ValueError("dates, y_true, and y_pred must have the same length.")
+
+    if mae is None:
+        mae = np.mean(np.abs(y_true - y_pred))
+
+    if green_spans is None:
+        green_spans = []
+    if orange_spans is None:
+        orange_spans = []
+
+    for start, end in green_spans:
+        ax.axvspan(pd.to_datetime(start), pd.to_datetime(end),
+                   color="#BFE3D0", alpha=0.85, lw=0, zorder=0)
+
+    for start, end in orange_spans:
+        ax.axvspan(pd.to_datetime(start), pd.to_datetime(end),
+                   color="#F2C8B6", alpha=0.85, lw=0, zorder=0)
+
+    ax.plot(dates, y_true, color=true_color, marker="o", markersize=4.5,
+            linewidth=2.0, zorder=3)
+    ax.plot(dates, y_pred, color=model_color, marker="o", markersize=4.5,
+            linewidth=2.4, zorder=4)
+
+    y_all = np.concatenate([y_true, y_pred])
+    y_min, y_max = np.nanmin(y_all), np.nanmax(y_all)
+    pad = (y_max - y_min) * y_margin
+    if pad == 0:
+        pad = 0.05
+    ax.set_ylim(y_min - pad, y_max + pad)
+
+    ax.set_xlim(dates.min() - pd.Timedelta(days=3),
+                dates.max() + pd.Timedelta(days=3))
+    ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+
+    for label in ax.get_xticklabels():
+        label.set_rotation(25)
+        label.set_ha("right")
+        label.set_fontsize(10)
+
+    ax.tick_params(axis="y", left=False, labelleft=False)
+    ax.tick_params(axis="x", length=0)
+
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.0)
+        spine.set_color("#333333")
+
+    ax.text(0.95, 0.32, model_name, transform=ax.transAxes,
+            ha="right", va="center", fontsize=16, color=model_color, fontweight="bold")
+    ax.text(0.95, 0.12, f"MAE: {mae:.3f}", transform=ax.transAxes,
+            ha="right", va="center", fontsize=16, color="#222222", fontweight="bold")
+
+    ax.grid(False)
+    return ax
+
+
+def collect_test_predictions(model, test_loader, args, device, itr):
+    """
+    Run model inference on the test set and return the LAST test window's
+    predictions, ground truth, and forecast dates — for plotting.
+
+    Returns
+    -------
+    preds_last : np.ndarray, shape (pred_len,)
+        Model predictions in differenced scale.
+    trues_last : np.ndarray, shape (pred_len,)
+        Ground truth in differenced scale.
+    forecast_dates : list of str
+        ISO date strings for each forecast step, e.g. ["2020-01-06", ...].
+    mse, mae, corr1, corr2 : float
+        Same metrics as test().
+    """
+    preds_all, trues_all, dates_all = [], [], []
+
+    model.eval()
+    with torch.no_grad():
+        for batch_x, batch_y, batch_x_mark, batch_y_mark, date in test_loader:
+            batch_x = batch_x.float().to(device)
+            batch_y = batch_y.float()
+            batch_x_mark = batch_x_mark.to(device)
+            date_np = date.detach().cpu().numpy()
+
+            with autocast():
+                outputs = model(batch_x, itr)
+
+            outputs = outputs[:, -args.pred_len:, :]
+            batch_y = batch_y[:, -args.pred_len:, :].to(device)
+
+            preds_all.append(outputs.detach().cpu().numpy())
+            trues_all.append(batch_y.detach().cpu().numpy())
+            dates_all.append(date_np)
+
+    preds_all = np.concatenate(preds_all, axis=0)   # (N, pred_len, 1)
+    trues_all = np.concatenate(trues_all, axis=0)
+    dates_all = np.concatenate(dates_all, axis=0)   # (N, seq_len+pred_len, 3)
+
+    # metrics over all test windows
+    mae_v, mse_v, *_ = metric(preds_all, trues_all)
+    corr_s_list, corr_p_list = [], []
+    for j in range(preds_all.shape[0]):
+        if args.pred_len > 1:
+            cs, _ = stats.spearmanr(preds_all[j, :, :].reshape(-1),
+                                    trues_all[j, :, :].reshape(-1))
+            cp, _ = stats.pearsonr(preds_all[j, :, :].reshape(-1),
+                                   trues_all[j, :, :].reshape(-1))
+            corr_s_list.append(cs)
+            corr_p_list.append(cp)
+    corr1 = float(np.nanmean(corr_s_list)) if corr_s_list else float('nan')
+    corr2 = float(np.nanmean(corr_p_list)) if corr_p_list else float('nan')
+
+    # last test window = the final 13-week forecast at the end of the series
+    preds_last = preds_all[-1, :, 0]   # (pred_len,)
+    trues_last = trues_all[-1, :, 0]
+    date_rows  = dates_all[-1]          # (seq_len+pred_len, 3)
+    forecast_dates = [
+        "{:04d}-{:02d}-{:02d}".format(int(y), int(m), int(d))
+        for y, m, d in date_rows[-args.pred_len:].astype(int)
+    ]
+
+    return preds_last, trues_last, forecast_dates, mse_v, mae_v, corr1, corr2
