@@ -65,7 +65,7 @@ This codebase supports multiple LLM backbones. Download the desired pre-trained 
 To generate a comparison plot between Llama2 and PatchTST models for date 2017-10-23:
 
 ```bash
-bash scripts/run_single_comparison_2017-10-23.sh
+bash scripts/run_single_comparison.sh
 ```
 
 This script will:
