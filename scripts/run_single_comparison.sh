@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 # Train both Llama2 and PatchTST models for prediction window 2017-10-23
 # Then call compare_llama2_vs_patchtst.py to generate comparison plot
-#
-# Usage:
-#   bash scripts/run_single_comparison_2017-10-23.sh
-#   bash scripts/run_single_comparison_2017-10-23.sh 2>&1 | tee logs/run_single_2017-10-23.log
 
 set -euo pipefail
 
 # ── GPU Setup ──────────────────────────────────────────────────────────────────
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=1 # please use your own setting
 
 # ── Common Parameters ──────────────────────────────────────────────────────────
 ROOT_PATH="./dataset/"
@@ -24,7 +20,7 @@ itr=3
 
 # ── Llama2 Specific Parameters ────────────────────────────────────────────────
 llama2_model=Llama2
-llama2_gpt_path="/data0/project/LLMs4Influenza/Model_from_HF/LLAMA2"
+llama2_gpt_path="Model_from_HF/LLAMA2" # please use your own setting
 llama2_batch_size=4
 llama2_lr=1e-4
 llama2_llama_layers=32

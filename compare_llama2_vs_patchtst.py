@@ -176,7 +176,7 @@ def plot_date(date, llama2_files, patchtst_files, raw_ref, scale, figure_dir):
 
     ax.set_ylabel("Positive rate", fontsize=11)
     ax.set_title(
-        f"Flu NorthChina — forecast from {date}  "
+        f"Flu NorthChina — forecast ending on {date}  "
         f"(Llama2 MAE={l_mae:.4f} < PatchTST MAE={p_mae:.4f})",
         fontsize=11, fontweight="bold",
     )

@@ -240,9 +240,23 @@ class Dataset_Custom(Dataset):
         self.root_path = root_path
         self.data_path = data_path
         self.__read_data__()
-        
+
         self.enc_in = self.data_x.shape[-1]
         self.tot_len = len(self.data_x) - self.seq_len - self.pred_len + 1
+
+    def _get_borders(self, total_len):
+        """Split [0, total_len) into train/val/test borders strictly in time order.
+
+        total_len is the usable dataset length (already truncated at test_end_date
+        when one is given), so train/val can never see rows beyond the cutoff.
+        """
+        num_train = int(total_len * 0.7)
+        num_test = int(total_len * 0.2)
+        num_vali = total_len - num_train - num_test
+
+        border1s = [0, num_train - self.seq_len, total_len - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, total_len]
+        return border1s, border2s
 
     def __read_data__(self):
         self.scaler = StandardScaler()
@@ -257,25 +271,22 @@ class Dataset_Custom(Dataset):
         df_raw.columns = cols
 
         cols.remove(self.target)
-        cols.remove('date') 
+        cols.remove('date')
         df_raw = df_raw[['date'] + cols + [self.target]]
 
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        num_vali = len(df_raw) - num_train - num_test
-
-        # Optionally cut the test window at a specific date instead of the file end
+        # Optionally cut the whole usable range at a specific date instead of the file end,
+        # then split train/val/test strictly within that range so no split can see data
+        # beyond test_end_date.
         if self.test_end_date is not None:
             dates = pd.to_datetime(df_raw['date'])
             mask = dates <= pd.Timestamp(self.test_end_date)
             if not mask.any():
                 raise ValueError(f"test_end_date '{self.test_end_date}' is before the first row in the dataset.")
-            test_end_idx = int(mask.sum())   # rows up to and including the cutoff date
+            total_len = int(mask.sum())   # rows up to and including the cutoff date
         else:
-            test_end_idx = len(df_raw)
+            total_len = len(df_raw)
 
-        border1s = [0, num_train - self.seq_len, test_end_idx - num_test - self.seq_len]
-        border2s = [num_train, num_train + num_vali, test_end_idx]
+        border1s, border2s = self._get_borders(total_len)
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
         

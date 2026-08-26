@@ -293,19 +293,18 @@ for ii in range(args.itr):
     print(f"GPU Memory Usage: Allocated Start {gpu_mem_start_alloc:.2f} MB, End {gpu_mem_end_alloc:.2f} MB")
     print(f"GPU Memory Usage: Reserved Start {gpu_mem_start_reserved:.2f} MB, End {gpu_mem_end_reserved:.2f} MB")
 
+    if args.write_model and ii == args.itr - 1:
+        # save_path = './PretrainModel/' + args.model_id.split('_')[0] + '_' + args.model_id.split('_')[1]
+        save_path = './PretrainModel/' + args.model_id.split('_')[0]
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        torch.save(model.state_dict(), save_path + '/' + args.model + '-' + 'temp.pth')
+
     del model
     del model_optim
     del test_loader
     gc.collect()
     torch.cuda.empty_cache()
-
-
-if args.write_model:
-    # save_path = './PretrainModel/' + args.model_id.split('_')[0] + '_' + args.model_id.split('_')[1]
-    save_path = './PretrainModel/' + args.model_id.split('_')[0] 
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    torch.save(model.state_dict(), save_path + '/' + args.model + '-' + 'temp.pth')
 
 mses = np.array(mses)
 maes = np.array(maes)
