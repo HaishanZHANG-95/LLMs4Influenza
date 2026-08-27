@@ -21,7 +21,7 @@ This protocol describes a step-by-step procedure for adapting pre-trained large 
 ## Requirements
 
 - Python >= 3.8
-- PyTorch 1.8.1
+- PyTorch >= 2.0.1
 - transformers
 - einops
 - tqdm
